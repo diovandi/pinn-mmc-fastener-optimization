@@ -12,6 +12,6 @@
     "vertical_tip"
   ],
   "input_dim": 14,
-  "num_samples": 180,
+  "num_samples": 1020,
   "hidden_size": 96
 }

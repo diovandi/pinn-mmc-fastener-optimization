@@ -45,3 +45,6 @@ Thumbs.db
 # Large CSV files can be excluded if needed
 # *.csv
 
+# Session changelog (local development tracking)
+SESSION_CHANGELOG.md
+

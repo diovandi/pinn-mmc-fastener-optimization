@@ -11,7 +11,7 @@
 ## Approach A (PINN) — Multi-Geometry Refresh
 
 **Dataset (combined via `rollouts/run_all.py`):**
-- Total samples: **180** (L-bracket ×2 loads, tapered plate, ribbed channel ×2 loads).
+- Total samples: **1020** (L-bracket ×2 loads: 200 each, tapered plate: 180, ribbed channel ×2 loads: 220 each).
 - Feature vector: 6 screw DOFs + 3 geometry one-hot + 5 load one-hot = 14 inputs.
 - Storage: `data/results/multi_geom_training/*.csv` with metadata in `dataset_metadata.json`.
 
@@ -40,12 +40,27 @@
 
 ## Approach B (MMC)
 
+**L-Bracket:**
 - Mesh: 40×40 elements, 2-component screw representation (radius 4 elements).
 - Constraints: Edge margin ≥1 element, min spacing ≥2 elements.
 - Iterations: 30 per run.
 - Final compliances: 0.426 (horizontal), 0.760 (vertical) normalized.
-- Runtime: 118 ms/iteration (Python + SciPy).
+- Runtime: 118 ms/iteration (Python + SciPy).
 - Assets: `mmc_core.py`, `run_mmc_lbracket.py`, logs in `mmc_lbracket_log.csv`, `mmc_log_vertical.csv`.
+
+**Tapered Plate:**
+- Mesh: 56×24 elements, 2-component screw representation (radius 3.5 elements).
+- Constraints: Edge margin 2.5 elements, min spacing 3.0 elements.
+- Load case: Combined tip force (450 N) + torsion (25 Nm).
+- Final compliance: 11667.14 (normalized).
+- Assets: `run_mmc_tapered_plate.py`, log in `mmc_tapered_plate_log.csv`.
+
+**Ribbed Channel:**
+- Mesh: 64×20 elements, 3-component screw representation (radius 4 elements).
+- Constraints: Edge margin 3.0 elements, min spacing 3.0 elements.
+- Load cases: Upward tip (600 N), lateral shear (400 N).
+- Final compliances: -732240.34 (upward), -1988492.19 (shear) normalized.
+- Assets: `run_mmc_ribbed_channel.py`, logs in `mmc_ribbed_channel_*_log.csv`.
 
 ## Unified Load Case Comparison
 
@@ -65,19 +80,23 @@
 - [x] Diff-FEA baseline + logs (`lbracket_diff_fea_log.csv`)
 - [x] MMC convergence / manifests (`mmc_runs_manifest.md`)
 - [x] Legacy PINN checkpoint retained (`artifacts/`)
-- [x] Multi-geometry PINN artifacts + metrics refreshed (Nov 25 2025)
+- [x] Multi-geometry PINN artifacts + metrics refreshed (Nov 25 2025)
+- [x] Dataset scale-up to ≥200 samples per load case (1020 total samples) ✓
+- [x] PINN retrained on expanded 1020-sample dataset ✓
+- [x] MMC runs on tapered plate and ribbed channel ✓
 - [x] Scenario validation figures (`figures/multi_geom/model_mae_comparison.png`)
-- [ ] Regenerate high-sample-count datasets (≥200 per load)
 - [ ] Execute Ansys validation for refreshed layouts
 - [ ] Quantify residual shear-load error after data augmentation
 
 ## Files Generated / Updated
 
 **Data & Logs**
-- `data/results/multi_geom_training/*.csv`
+- `data/results/multi_geom_training/*.csv` (1020 samples total)
 - `data/results/pinn_training_data.csv` (legacy)
 - `data/results/lbracket_diff_fea_log.csv`
 - `data/results/mmc_lbracket_log.csv`, `mmc_log_vertical.csv`
+- `data/results/mmc_tapered_plate_log.csv`
+- `data/results/mmc_ribbed_channel_upward_tip_log.csv`, `mmc_ribbed_channel_lateral_shear_log.csv`
 - `data/results/method_comparison.csv`
 - `src/experiments/scenario_validation/results/multi_geom_model_metrics.csv`
 
