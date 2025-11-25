@@ -66,8 +66,6 @@ The project uses separate conda environments:
 
 ## Usage
 
-### Typical Workflows
-
 ### Approach A (Differentiable FEA + PINN)
 1. Regenerate the multi-geometry dataset (L-bracket ×2 loads, tapered plate, ribbed channel ×2 loads):
    ```bash
@@ -119,12 +117,20 @@ conda run -n mmc_env python src/approach_b_mmc/run_mmc_lbracket.py --tag lbracke
 
 Use its README plus `dataset_plan.yaml` to adjust target sample counts (goal: ≥200 samples per load case before thesis submission).
 
-## Status & Next Steps
+## Results
 
-- The multi-geometry PINN (Nov 25 2025) matches differentiable FEA within ≤1.1 % for all high-energy loads and ≤6.75 % for the tapered plate combined load, while keeping inference at ~0.009 ms/sample.
+The multi-geometry PINN (Nov 25 2025) matches differentiable FEA within ≤1.1% for all high-energy loads and ≤6.75% for the tapered plate combined load, while keeping inference at ~0.009 ms/sample.
+
+Key metrics and visualizations are available in:
+- `data/results/` – Training logs, comparison tables, and exported layouts
+- `figures/` – Publication-ready visualizations
+- `docs/thesis_draft_chapters/` – Detailed analysis in thesis chapters
+
+### Current Status
+
 - Legacy single-geometry artifacts remain for regressions but should be cited as historical baselines only.
 - Outstanding items:
-  - Regenerate higher-volume datasets (≥200 samples/load) to shrink ribbed-channel shear error (currently 2.5 J absolute).
+  - Regenerate higher-volume datasets (≥200 samples/load) to shrink ribbed-channel shear error (currently 2.5 J absolute).
   - Execute Ansys validation via `data/results/ansys_exports/` using the refreshed layouts.
   - Propagate the new metrics/figures into the thesis chapters (`docs/thesis_draft_chapters/`) and status docs (`docs/notes/`, `docs/progress_reports/`).
 
