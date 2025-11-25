@@ -1,0 +1,41 @@
+{
+  "export_timestamp": "2025-11-25T22:48:42.385080",
+  "methods": {
+    "pinn": {
+      "final_compliance": 939.511308,
+      "screws": [
+        {
+          "id": 1,
+          "x_mm": 20.8747,
+          "y_mm": 28.4696
+        },
+        {
+          "id": 2,
+          "x_mm": 13.7186,
+          "y_mm": 74.5164
+        }
+      ],
+      "iterations": 24
+    },
+    "mmc": {
+      "final_compliance_normalized": -12.241991369843984,
+      "screws": [
+        {
+          "id": 1,
+          "x_mm": 32.981735525809896,
+          "y_mm": 32.981735525809896
+        },
+        {
+          "id": 2,
+          "x_mm": 56.37595043977691,
+          "y_mm": 27.133181797318148
+        }
+      ],
+      "iterations": 30
+    }
+  },
+  "validation_target": {
+    "error_threshold_percent": 15.0,
+    "note": "Compare Ansys results with Julia predictions. MMC values are normalized."
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "method": "mmc",
+  "source_file": "mmc_lbracket_log.csv",
+  "final_compliance_normalized": -12.241991369843984,
+  "iterations": 30,
+  "screws": [
+    {
+      "id": 1,
+      "x_mm": 32.981735525809896,
+      "y_mm": 32.981735525809896
+    },
+    {
+      "id": 2,
+      "x_mm": 56.37595043977691,
+      "y_mm": 27.133181797318148
+    }
+  ],
+  "geometry": {
+    "type": "L_bracket",
+    "mesh_resolution": "40x40",
+    "void_cutoff_x_elements": 16,
+    "void_cutoff_y_elements": 16,
+    "load_case": "horizontal_tip"
+  },
+  "material": {
+    "E_base_normalized": 1.0,
+    "E_bolt_normalized": 5.0,
+    "nu": 0.3
+  },
+  "note": "MMC uses normalized compliance. Physical units require scaling factor."
+}

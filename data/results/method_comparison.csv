@@ -1,0 +1,4 @@
+method,tag,compliance,time_per_iter,source,label
+diff_fea,lbracket,939.59103,0.01035944,lbracket_diff_fea_log.csv,diff_fea (lbracket)
+mmc,lbracket,0.4256656882814172,0.1181997406867243,mmc_log_lbracket.csv,mmc (lbracket)
+mmc,vertical,0.7603708380689067,0.08668547291909497,mmc_log_vertical.csv,mmc (vertical)

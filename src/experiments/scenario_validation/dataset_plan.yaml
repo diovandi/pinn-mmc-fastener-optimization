@@ -1,0 +1,110 @@
+# Multi-Geometry Differentiable FEA Rollout Plan
+# ------------------------------------------------
+# This configuration enumerates each geometry that will feed the
+# next-generation multi-geometry PINN. Downstream scripts will
+# read these entries to launch Julia rollouts, build datasets,
+# and log manifests.
+
+defaults:
+  output_dir: data/results/multi_geom_training
+  samples_per_load_case: 120          # minimum number of unique screw layouts
+  screw_spacing_mm: 5                 # default sampling granularity (may be overridden)
+  material:
+    youngs_modulus_gpa: 70
+    poisson: 0.33
+
+geometries:
+  - name: l_bracket
+    description: Baseline 100 mm × 100 mm L-bracket benchmark used in the original PINN training.
+    mesh_script: src/approach_a_pinn/LBracketBenchmarkLogger.jl
+    bc_summary:
+      clamp: inner corner edges (matching existing JSON definition)
+      loads:
+        - id: horizontal_tip
+          dof: UX at outer arm tip node
+          magnitude_N: 1000
+        - id: vertical_tip
+          dof: UY at outer arm tip node
+          magnitude_N: -1000
+    screw_space:
+      region: existing lbracket.json bounding box (5–95 mm)
+      count_per_sample: 2
+      constraint: maintain 10 mm edge clearance and avoid void region
+    rollout_plan:
+      datasets:
+        - load_case: horizontal_tip
+          samples: 200
+        - load_case: vertical_tip
+          samples: 200
+      notes: >
+        Reuse `data/cad/lbracket.json` and log outputs to
+        `lbracket_multi_geom.csv`. These rollouts ensure continuity with
+        the legacy dataset.
+
+  - name: tapered_plate
+    description: 140 mm × 60 mm tapered cantilever plate with two screw rows (x=20, 80 mm) and combined load.
+    mesh_script: src/experiments/scenario_validation/fea/NewPartBenchmark.jl
+    bc_summary:
+      clamp: x = 0 edge
+      loads:
+        - id: combined_tip
+          tip_force_N: 450
+          torsion_Nm: 25
+    screw_space:
+      rows:
+        - x_mm: 20
+          y_range_mm: [12, 48]
+          spacing_mm: 15
+        - x_mm: 80
+          y_range_mm: [12, 48]
+          spacing_mm: 15
+      count_per_sample: 2
+    rollout_plan:
+      datasets:
+        - load_case: combined_tip
+          samples: 180
+      notes: >
+        Uses the existing PINN/MMC scripts in `src/experiments/scenario_validation/pinn`
+        and `src/experiments/scenario_validation/fea`. Export logs to
+        `tapered_plate_multi_geom.csv` for training.
+
+  - name: ribbed_channel
+    description: New Part C – 160 mm × 50 mm channel plate with a rectangular slot (40 mm wide) and three allowable screw rows.
+    mesh_script: src/experiments/scenario_validation/fea/RibbedChannelBenchmark.jl   # to be implemented
+    bc_summary:
+      clamp: left edge plus slot interior (prevents rigid-body motion)
+      loads:
+        - id: upward_tip
+          location: (x=155 mm, y=25 mm)
+          magnitude_N: -600
+        - id: lateral_shear
+          location: distributed along top edge
+          magnitude_N: 400
+    screw_space:
+      rows:
+        - x_mm: 35
+          y_range_mm: [8, 42]
+          spacing_mm: 12
+        - x_mm: 80
+          y_range_mm: [8, 42]
+          spacing_mm: 12
+        - x_mm: 125
+          y_range_mm: [8, 42]
+          spacing_mm: 12
+      count_per_sample: 3
+      additional_rules:
+        - maintain >= 10 mm distance from slot boundary
+        - enforce 8 mm minimum spacing between screws within the same row
+    rollout_plan:
+      datasets:
+        - load_case: upward_tip
+          samples: 220
+        - load_case: lateral_shear
+          samples: 220
+      notes: >
+        This geometry introduces a mix of bending and shear responses and
+        requires a new Julia driver plus MMC/PINN harnesses. Use it to
+        stress-test generalization beyond two-screw configurations.
+
+# End of dataset plan.
+

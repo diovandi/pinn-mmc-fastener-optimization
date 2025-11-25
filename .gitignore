@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb_checkpoints/
+
+# Julia
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+Manifest.toml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Model artifacts (optional - uncomment if you don't want to track these)
+# *.pth
+# *.npz
+# *.h5
+
+# Large data files (optional - uncomment if files are too large)
+# *.vtk
+# Large CSV files can be excluded if needed
+# *.csv
+

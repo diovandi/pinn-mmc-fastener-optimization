@@ -1,0 +1,26 @@
+{
+  "geometry": "tapered_cantilever_plate",
+  "dimensions_mm": {
+    "length": 140.0,
+    "height": 60.0,
+    "thickness_range": [
+      6.0,
+      3.0
+    ]
+  },
+  "rows": {
+    "row_a": {
+      "x_mm": 20.0,
+      "spacing_mm": 15.0
+    },
+    "row_b": {
+      "x_mm": 80.0,
+      "spacing_mm": 15.0
+    }
+  },
+  "loads": {
+    "tip_force_N": 450.0,
+    "torsion_Nm": 25.0
+  },
+  "clamp_region_mm": 10.0
+}

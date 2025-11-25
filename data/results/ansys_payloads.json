@@ -1,0 +1,56 @@
+{
+  "layouts": [
+    {
+      "method": "diff_fea",
+      "tag": "lbracket",
+      "compliance": 939.59103,
+      "screws": [
+        {
+          "x": 20.7456,
+          "y": 28.2163
+        },
+        {
+          "x": 13.6137,
+          "y": 74.8261
+        }
+      ],
+      "source": "lbracket_diff_fea_log.csv"
+    },
+    {
+      "method": "mmc",
+      "tag": "lbracket",
+      "compliance": 0.4256656882814172,
+      "screws": [
+        {
+          "x": 8.981735525809897,
+          "y": 8.981735525809897
+        },
+        {
+          "x": 15.53211570172066,
+          "y": 9.917504122368578
+        }
+      ],
+      "edge_margin": 1.0,
+      "min_spacing": 2.0,
+      "source": "mmc_log_lbracket.csv"
+    },
+    {
+      "method": "mmc",
+      "tag": "vertical",
+      "compliance": 0.7603708380689067,
+      "screws": [
+        {
+          "x": 7.321157017206596,
+          "y": 11.578082630971876
+        },
+        {
+          "x": 11.064231403441315,
+          "y": 12.513851227530555
+        }
+      ],
+      "edge_margin": 2.0,
+      "min_spacing": 3.5,
+      "source": "mmc_log_vertical.csv"
+    }
+  ]
+}

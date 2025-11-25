@@ -1,0 +1,17 @@
+{
+  "geom_names": [
+    "l_bracket",
+    "ribbed_channel",
+    "tapered_plate"
+  ],
+  "load_cases": [
+    "combined_tip",
+    "horizontal_tip",
+    "lateral_shear",
+    "upward_tip",
+    "vertical_tip"
+  ],
+  "input_dim": 14,
+  "num_samples": 180,
+  "hidden_size": 96
+}

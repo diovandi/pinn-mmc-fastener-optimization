@@ -1,0 +1,31 @@
+{
+  "method": "pinn_diff_fea",
+  "source_file": "lbracket_diff_fea_log.csv",
+  "final_compliance_julia": 939.511308,
+  "iterations": 24,
+  "screws": [
+    {
+      "id": 1,
+      "x_mm": 20.8747,
+      "y_mm": 28.4696
+    },
+    {
+      "id": 2,
+      "x_mm": 13.7186,
+      "y_mm": 74.5164
+    }
+  ],
+  "geometry": {
+    "type": "L_bracket",
+    "thickness_mm": 25.0,
+    "max_dim_mm": 100.0,
+    "load_dof": 68,
+    "load_magnitude_N": -1000.0
+  },
+  "material": {
+    "E_base_MPa": 70000.0,
+    "E_bolt_MPa": 200000.0,
+    "nu": 0.3,
+    "thickness_mm": 5.0
+  }
+}
