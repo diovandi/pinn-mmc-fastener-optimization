@@ -548,12 +548,72 @@ def measure_speed_benchmarks() -> pd.DataFrame:
     stats = np.load(stats_path)
     # Determine input dimension from stats
     input_dim = stats["X_mean"].shape[0]
-    model = SurrogateModel(input_dim=input_dim)
-    model.load_state_dict(torch.load(model_path, map_location="cpu"))
+    
+    # Load checkpoint to determine hidden size dynamically
+    checkpoint = torch.load(model_path, map_location="cpu")
+    # Check the shape of the first layer weight to determine hidden_size
+    if "net.0.weight" in checkpoint:
+        hidden_size = checkpoint["net.0.weight"].shape[0]
+    else:
+        # Fallback to default if key format is different
+        hidden_size = 96
+    
+    model = SurrogateModel(input_dim=input_dim, hidden_size=hidden_size)
+    model.load_state_dict(checkpoint)
     model.eval()
 
-    data = load_csv(dataset_path).values.astype(np.float32)
-    X = data[:, :input_dim]
+    # Load CSV and extract numeric features
+    df = load_csv(dataset_path)
+    
+    # Extract screw coordinates (handle both 2-screw and 3-screw cases)
+    screw_cols = ["s1_x", "s1_y", "s2_x", "s2_y"]
+    if "s3_x" in df.columns and "s3_y" in df.columns:
+        screw_cols.extend(["s3_x", "s3_y"])
+    else:
+        # Pad with zeros if s3 columns don't exist
+        df["s3_x"] = 0.0
+        df["s3_y"] = 0.0
+        screw_cols.extend(["s3_x", "s3_y"])
+    
+    # One-hot encode geometry
+    geometry_map = {"l_bracket": [1, 0, 0], "ribbed_channel": [0, 1, 0], "tapered_plate": [0, 0, 1]}
+    if "geometry" in df.columns:
+        geometry_onehot = df["geometry"].map(geometry_map).apply(pd.Series)
+        geometry_onehot.columns = ["geo_l_bracket", "geo_ribbed", "geo_tapered"]
+    else:
+        # Default to l_bracket if no geometry column
+        geometry_onehot = pd.DataFrame({"geo_l_bracket": [1.0] * len(df), "geo_ribbed": [0.0] * len(df), "geo_tapered": [0.0] * len(df)})
+    
+    # One-hot encode load_case
+    load_case_map = {
+        "horizontal_tip": [1, 0, 0, 0, 0],
+        "vertical_tip": [0, 1, 0, 0, 0],
+        "upward_tip": [0, 0, 1, 0, 0],
+        "lateral_shear": [0, 0, 0, 1, 0],
+        "combined_tip": [0, 0, 0, 0, 1],
+    }
+    if "load_case" in df.columns:
+        load_onehot = df["load_case"].map(load_case_map).apply(pd.Series)
+        load_onehot.columns = ["lc_horizontal", "lc_vertical", "lc_upward", "lc_shear", "lc_combined"]
+    else:
+        # Default to horizontal_tip if no load_case column
+        load_onehot = pd.DataFrame({
+            "lc_horizontal": [1.0] * len(df),
+            "lc_vertical": [0.0] * len(df),
+            "lc_upward": [0.0] * len(df),
+            "lc_shear": [0.0] * len(df),
+            "lc_combined": [0.0] * len(df),
+        })
+    
+    # Combine all features in the expected order: screws (6) + geometry (3) + load_case (5) = 14
+    X_df = pd.concat([df[screw_cols], geometry_onehot, load_onehot], axis=1)
+    X = X_df.values.astype(np.float32)
+    
+    # Verify dimensions match
+    if X.shape[1] != input_dim:
+        raise ValueError(f"Feature dimension mismatch: expected {input_dim}, got {X.shape[1]}. "
+                        f"Columns: {list(X_df.columns)}")
+    
     X_norm = (X - stats["X_mean"]) / stats["X_std"]
     X_tensor = torch.tensor(X_norm, dtype=torch.float32)
 
@@ -605,39 +665,106 @@ def plot_speed_bars(speed_df: pd.DataFrame) -> go.Figure:
 def plot_unified_convergence() -> go.Figure:
     fea = load_csv(RESULTS_DIR / "lbracket_diff_fea_log.csv")
     mmc = load_csv(RESULTS_DIR / "mmc_lbracket_log.csv")
-    mmc_scaled = mmc["compliance"] * 1500.0
+    
     fig = go.Figure()
+    
+    # Diff-FEA PINN Training on left y-axis
     fig.add_trace(
-        go.Scatter(x=fea["iter"], y=fea["compliance"], mode="lines+markers", name="Diff-FEA PINN Training")
+        go.Scatter(
+            x=fea["iter"],
+            y=fea["compliance"],
+            mode="lines+markers",
+            name="Diff-FEA PINN Training",
+            yaxis="y",
+            line=dict(color="#1f77b4", width=2),
+            marker=dict(size=4),
+        )
     )
+    
+    # MMC Optimization on right y-axis (use original values, not scaled)
     fig.add_trace(
         go.Scatter(
             x=mmc["iter"],
-            y=mmc_scaled,
+            y=mmc["compliance"],
             mode="lines+markers",
-            name="MMC Optimization (scaled)",
+            name="MMC Optimization",
+            yaxis="y2",
+            line=dict(color="#ff7f0e", width=2),
+            marker=dict(size=4),
         )
     )
+    
     fig.update_layout(
         title="Convergence Trajectories",
         xaxis_title="Iteration",
-        yaxis_title="Compliance (J)",
+        yaxis=dict(
+            title=dict(text="Compliance (J) - Diff-FEA PINN", font=dict(color="#1f77b4")),
+            tickfont=dict(color="#1f77b4"),
+        ),
+        yaxis2=dict(
+            title=dict(text="Compliance (normalized) - MMC", font=dict(color="#ff7f0e")),
+            tickfont=dict(color="#ff7f0e"),
+            anchor="x",
+            overlaying="y",
+            side="right",
+        ),
         legend=dict(x=0.02, y=0.98),
+        hovermode="x unified",
     )
     return fig
 
 
 def plot_method_comparison() -> go.Figure:
     df = load_csv(RESULTS_DIR / "method_comparison.csv")
-    df = df.sort_values("compliance")
-    fig = px.bar(
-        df,
-        x="label",
-        y="compliance",
-        color="label",
+    
+    # Separate Diff-FEA and MMC data
+    diff_fea_df = df[df["method"] == "diff_fea"].copy()
+    mmc_df = df[df["method"] == "mmc"].copy()
+    
+    fig = go.Figure()
+    
+    # Diff-FEA bars on left y-axis
+    if len(diff_fea_df) > 0:
+        fig.add_trace(
+            go.Bar(
+                x=diff_fea_df["label"],
+                y=diff_fea_df["compliance"],
+                name="Diff-FEA",
+                marker_color="#1f77b4",
+                yaxis="y",
+            )
+        )
+    
+    # MMC bars on right y-axis
+    if len(mmc_df) > 0:
+        fig.add_trace(
+            go.Bar(
+                x=mmc_df["label"],
+                y=mmc_df["compliance"],
+                name="MMC",
+                marker_color="#ff7f0e",
+                yaxis="y2",
+            )
+        )
+    
+    fig.update_layout(
         title="Final Compliance Comparison",
+        xaxis_title="Method",
+        yaxis=dict(
+            title=dict(text="Compliance (J) - Diff-FEA", font=dict(color="#1f77b4")),
+            tickfont=dict(color="#1f77b4"),
+        ),
+        yaxis2=dict(
+            title=dict(text="Compliance (normalized) - MMC", font=dict(color="#ff7f0e")),
+            tickfont=dict(color="#ff7f0e"),
+            anchor="x",
+            overlaying="y",
+            side="right",
+        ),
+        showlegend=True,
+        legend=dict(x=0.02, y=0.98),
+        barmode="group",
     )
-    fig.update_layout(xaxis_title="Method", yaxis_title="Compliance (normalized)", showlegend=False)
     return fig
 
 
