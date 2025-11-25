@@ -1,8 +1,19 @@
-# Dual Approach Thesis Workspace
+# PINN vs MMC: Fastener Placement Optimization
 
-This repository hosts the dual-method thesis comparing differentiable-physics PINNs against Moving Morphable Components (MMC) on fastener placement problems. The codebase now follows a clean separation between code, data, documentation, and figures so each workflow is easy to discover and maintain.
+A comparative study of Physics-Informed Neural Networks (PINNs) and Moving Morphable Components (MMC) for optimal fastener placement in structural optimization problems.
 
-## Directory Map
+## Overview
+
+This repository contains the implementation and analysis for a dual-method thesis comparing differentiable-physics PINNs against Moving Morphable Components (MMC) on fastener placement problems. The codebase follows a clean separation between code, data, documentation, and figures to ensure each workflow is easy to discover and maintain.
+
+### Key Features
+
+- **Approach A (PINN)**: Differentiable FEA kernels in Julia with PyTorch-based neural network training
+- **Approach B (MMC)**: Moving Morphable Components topology optimization
+- **Multi-geometry validation**: L-bracket, tapered plate, and ribbed channel geometries
+- **Comprehensive analysis tools**: Unified comparison plots, Ansys export utilities, and generalization testing
+
+## Repository Structure
 
 - `src/approach_a_pinn/` – Julia differentiable FEA kernels, dataset generators, and the PyTorch training/inference stack (artifacts live in `src/approach_a_pinn/artifacts/`).
 - `src/approach_b_mmc/` – MMC core module plus the CLI benchmark runner.
@@ -13,7 +24,49 @@ This repository hosts the dual-method thesis comparing differentiable-physics PI
 - `figures/` – Centralized PNG assets grouped by theme (`overview/`, `pinn/`, `mmc/`, `setup/`).
 - `archive/` – Legacy experiments, scratch analyses, and historical notes kept for reference.
 
-## Typical Workflows
+## Requirements
+
+### Python Environment
+- Python 3.8+
+- PyTorch
+- NumPy, SciPy, Matplotlib
+- Jupyter (for notebooks)
+
+### Julia Environment
+- Julia 1.8+
+- Required packages: See individual Julia scripts for dependencies
+
+### Conda Environments
+The project uses separate conda environments:
+- `pinn_env` – For PINN training and inference
+- `mmc_env` – For MMC optimization runs
+
+## Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/diovandi/pinn-mmc-fastener-optimization.git
+   cd pinn-mmc-fastener-optimization
+   ```
+
+2. Set up conda environments (if using conda):
+   ```bash
+   # Create and activate PINN environment
+   conda create -n pinn_env python=3.9
+   conda activate pinn_env
+   pip install torch numpy scipy matplotlib jupyter
+   
+   # Create and activate MMC environment
+   conda create -n mmc_env python=3.9
+   conda activate mmc_env
+   pip install numpy scipy matplotlib
+   ```
+
+3. Install Julia dependencies as needed for the specific scripts you plan to run.
+
+## Usage
+
+### Typical Workflows
 
 ### Approach A (Differentiable FEA + PINN)
 1. Regenerate the multi-geometry dataset (L-bracket ×2 loads, tapered plate, ribbed channel ×2 loads):
@@ -75,5 +128,28 @@ Use its README plus `dataset_plan.yaml` to adjust target sample counts (goal: �
   - Execute Ansys validation via `data/results/ansys_exports/` using the refreshed layouts.
   - Propagate the new metrics/figures into the thesis chapters (`docs/thesis_draft_chapters/`) and status docs (`docs/notes/`, `docs/progress_reports/`).
 
-This README should give newcomers enough context to navigate the reorganized repository while preserving all prior work.
+
+## Contributing
+
+This is a thesis research repository. For questions or collaboration inquiries, please open an issue or contact the repository owner.
+
+## License
+
+[Add your license here - e.g., MIT, Apache 2.0, or specify if this is academic/research code]
+
+## Citation
+
+If you use this work in your research, please cite:
+
+```bibtex
+[Add citation information when available]
+```
+
+## Author
+
+- **Diovandi** – [GitHub](https://github.com/diovandi)
+
+---
+
+For detailed documentation, see the `docs/` directory. This README provides an overview; refer to individual component READMEs and documentation files for specific implementation details.
 
