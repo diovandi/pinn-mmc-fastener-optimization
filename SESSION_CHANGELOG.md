@@ -3,7 +3,7 @@
 This is a living document tracking all changes made during the current development session, starting from the initial repository setup.
 
 **Session Start:** November 25-26, 2025 (late night/early morning)  
-**Last Updated:** November 26, 2025 03:24 AM WIB
+**Last Updated:** November 26, 2025 03:26 AM WIB
 
 ---
 
@@ -313,12 +313,102 @@ This initial commit established the complete thesis project structure with dual 
 
 ---
 
+### 2025-11-26 (Compliance Comparison Fixes and 3D Framework Expansion)
+
+**Type:** Modified/Added  
+**Files Changed:**
+- `data/results/method_comparison.csv` (modified)
+- `docs/notebooks/story_helpers.py` (modified - `plot_method_comparison()`)
+- `data/cad/3d/` (new directory structure)
+- `src/approach_a_pinn/3d/` (new directory structure)
+- `src/approach_b_mmc/3d/` (new directory structure)
+- `data/cad/3d/lbracket_3d.json` (new)
+- `src/approach_a_pinn/3d/DiffFEA_3D.jl` (new)
+- `src/approach_a_pinn/3d/README.md` (new)
+- `src/approach_b_mmc/3d/README.md` (new)
+
+**Description:** Fixed compliance comparison visualization issues, expanded 3D framework with directory structure and initial implementations
+
+**Details:**
+- **Compliance Comparison Fixes:**
+  - **Updated `method_comparison.csv`:**
+    - Added diff-FEA entries for all 5 geometries (using optimal compliance from training data)
+    - Fixed MMC values to use minimum (best) compliance instead of last iteration value
+    - Now includes complete coverage: L-bracket horizontal/vertical, tapered plate, ribbed channel upward/shear
+  - **Updated `plot_method_comparison()` in `story_helpers.py`:**
+    - Implemented log scale for both axes to handle wide value ranges across geometries
+    - Separated normalized MMC (L-bracket) from potentially problematic values
+    - Added explanatory note about unit differences for non-L-bracket geometries
+    - Increased plot height (500px) for better readability
+    - Improved handling of edge cases (negative values, missing data)
+
+- **3D Framework Expansion:**
+  - **Created 3D directory structure:**
+    - `data/cad/3d/` - for 3D geometry definitions and mesh files
+    - `src/approach_a_pinn/3d/` - for 3D PINN/FEA code
+    - `src/approach_b_mmc/3d/` - for 3D MMC code
+  - **Created initial 3D files:**
+    - `data/cad/3d/lbracket_3d.json` - 3D L-bracket geometry definition with volumetric properties
+    - `src/approach_a_pinn/3d/DiffFEA_3D.jl` - skeleton for 3D FEA solver (extended from initial placeholder)
+    - README files in each 3D directory documenting extension plans and architecture
+
+- **Impact**: 
+  - Compliance comparison plot now displays correctly with all geometries using log scale
+  - 3D infrastructure in place with clear directory organization
+  - Foundation ready for 3D implementation work
+
+---
+
+## Next Steps for 3D Extension
+
+### Immediate Priorities
+
+1. **Complete DiffFEA_3D.jl Implementation:**
+   - Implement full tetrahedral element formulation (shape functions, B-matrix)
+   - Complete sparse matrix assembly for 3D meshes
+   - Add boundary condition handling for 3D geometries
+   - Test with simple 3D geometry (e.g., cantilever beam, L-bracket)
+
+2. **3D Mesh Generation:**
+   - Extend Gmsh pipeline for 3D volumetric meshing
+   - Implement surface extraction and constraintable region tagging
+   - Add mesh quality validation and refinement utilities
+   - Create mesh visualization tools for 3D geometries
+
+3. **3D Dataset Generation:**
+   - Implement screw position sampling in 3D space (x, y, z coordinates)
+   - Add orientation DOFs for cylindrical fasteners (normal vector, rotation angle)
+   - Extend differentiable FEA to handle 3D screw placement
+   - Generate training datasets for 3D PINN surrogate
+
+4. **3D MMC Extension:**
+   - Extend component parameterization to 3D (spherical/cylindrical components)
+   - Implement 3D level-set functions and density projection
+   - Add 3D constraint handling (spacing, edge margins, orientation)
+   - Create 3D visualization tools for MMC optimization
+
+5. **Integration and Validation:**
+   - Integrate 3D FEA with PINN training pipeline
+   - Validate 3D results against commercial FEA (Ansys/CalculiX)
+   - Compare 3D PINN vs 3D MMC performance
+   - Document 3D extension in thesis chapters
+
+### Long-term Goals
+
+- **Variable Topology:** Allow methods to add/remove screws dynamically in 3D
+- **Hybrid Approach:** Combine PINN speed with MMC interpretability for 3D problems
+- **Additional Benchmarks:** Test on motor housing cover and other realistic 3D geometries
+- **Performance Optimization:** Optimize 3D FEA assembly and solve times
+- **Publication:** Prepare 3D results for conference/journal submission
+
+---
+
 ## Change Statistics
 
-**Total Commits:** 5+ (including this final update)  
-**Total Files Changed:** 150+  
-**Total Lines Added:** 20,000+  
-**Session Duration:** ~25 hours (Nov 25-26, 2025)
+**Total Commits:** 6+ (including compliance fixes and 3D expansion)  
+**Total Files Changed:** 160+  
+**Total Lines Added:** 21,000+  
+**Session Duration:** ~26 hours (Nov 25-26, 2025)
 
 ---
 

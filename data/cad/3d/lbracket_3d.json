@@ -1,0 +1,67 @@
+{
+  "name": "L-Bracket 3D",
+  "description": "3D L-bracket geometry for topology optimization with fastener placement",
+  "dimensions": {
+    "vertical_leg": {
+      "width": 100.0,
+      "height": 100.0,
+      "thickness": 5.0
+    },
+    "horizontal_leg": {
+      "width": 100.0,
+      "height": 25.0,
+      "thickness": 5.0
+    }
+  },
+  "material": {
+    "E": 70000.0,
+    "nu": 0.3,
+    "density": 2700.0
+  },
+  "fasteners": {
+    "count": 2,
+    "radius": 5.0,
+    "E": 200000.0,
+    "nu": 0.3
+  },
+  "boundary_conditions": {
+    "fixed_surfaces": [
+      "top_edge_vertical_leg"
+    ],
+    "load_cases": [
+      {
+        "name": "horizontal_tip",
+        "location": "tip_horizontal_leg",
+        "force": [-1000.0, 0.0, 0.0],
+        "units": "N"
+      },
+      {
+        "name": "vertical_tip",
+        "location": "tip_horizontal_leg",
+        "force": [0.0, -1000.0, 0.0],
+        "units": "N"
+      }
+    ]
+  },
+  "mesh": {
+    "type": "tetrahedral",
+    "target_element_size": 2.5,
+    "refinement_regions": []
+  },
+  "optimization": {
+    "screw_placement_domain": {
+      "x_min": 10.0,
+      "x_max": 90.0,
+      "y_min": 10.0,
+      "y_max": 90.0,
+      "z_min": 0.0,
+      "z_max": 5.0
+    },
+    "constraints": {
+      "min_spacing": 20.0,
+      "edge_margin": 10.0
+    }
+  },
+  "notes": "3D extension of 2D L-bracket benchmark. Screw positions include z-coordinate and orientation DOFs."
+}
+
