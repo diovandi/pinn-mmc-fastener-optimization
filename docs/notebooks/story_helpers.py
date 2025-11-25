@@ -491,7 +491,11 @@ def plot_dataset_histogram(csv_path: Path, label: str, *, has_header: bool = Fal
         opacity=0.85,
         color_discrete_sequence=["#3f51b5"],
     )
-    fig.update_layout(bargap=0.05)
+    fig.update_layout(
+        bargap=0.05,
+        xaxis_title="Compliance (J)",
+        yaxis_title="Frequency"
+    )
     return fig
 
 
@@ -518,7 +522,11 @@ def plot_dataset_scatter(csv_path: Path, label: str, *, has_header: bool = False
         title=f"Screw Placement Distribution — {label}",
         labels=dict(x="X (mm)", y="Y (mm)", color="Compliance (J)"),
     )
-    fig.update_layout(xaxis=dict(scaleanchor="y", scaleratio=1), height=520)
+    fig.update_layout(
+        xaxis=dict(scaleanchor="y", scaleratio=1, title="X (mm)"),
+        yaxis=dict(title="Y (mm)"),
+        height=520
+    )
     return fig
 
 
@@ -658,64 +666,80 @@ def plot_speed_bars(speed_df: pd.DataFrame) -> go.Figure:
         log_y=True,
         title="Iteration Runtime Comparison (Log Scale)",
     )
-    fig.update_layout(yaxis_title="Time per Iteration (s)")
+    fig.update_layout(
+        yaxis_title="Time per Iteration (s, log scale)",
+        xaxis_title="Method"
+    )
     return fig
 
 
 def plot_unified_convergence() -> go.Figure:
+    """Create separate subplots for convergence to avoid scaling issues."""
     fea = load_csv(RESULTS_DIR / "lbracket_diff_fea_log.csv")
     mmc = load_csv(RESULTS_DIR / "mmc_lbracket_log.csv")
     
-    fig = go.Figure()
+    # Create subplots with separate y-axes
+    fig = make_subplots(
+        rows=1,
+        cols=2,
+        subplot_titles=("Diff-FEA PINN Training", "MMC Optimization"),
+        column_widths=[0.5, 0.5],
+        horizontal_spacing=0.15,
+    )
     
-    # Diff-FEA PINN Training on left y-axis
+    # Diff-FEA PINN Training on left subplot
     fig.add_trace(
         go.Scatter(
             x=fea["iter"],
             y=fea["compliance"],
             mode="lines+markers",
             name="Diff-FEA PINN Training",
-            yaxis="y",
             line=dict(color="#1f77b4", width=2),
             marker=dict(size=4),
-        )
+            showlegend=True,
+        ),
+        row=1,
+        col=1,
     )
     
-    # MMC Optimization on right y-axis (use original values, not scaled)
+    # MMC Optimization on right subplot
     fig.add_trace(
         go.Scatter(
             x=mmc["iter"],
             y=mmc["compliance"],
             mode="lines+markers",
             name="MMC Optimization",
-            yaxis="y2",
             line=dict(color="#ff7f0e", width=2),
             marker=dict(size=4),
-        )
+            showlegend=True,
+        ),
+        row=1,
+        col=2,
     )
     
     fig.update_layout(
-        title="Convergence Trajectories",
-        xaxis_title="Iteration",
-        yaxis=dict(
-            title=dict(text="Compliance (J) - Diff-FEA PINN", font=dict(color="#1f77b4")),
-            tickfont=dict(color="#1f77b4"),
-        ),
-        yaxis2=dict(
-            title=dict(text="Compliance (normalized) - MMC", font=dict(color="#ff7f0e")),
-            tickfont=dict(color="#ff7f0e"),
-            anchor="x",
-            overlaying="y",
-            side="right",
-        ),
-        legend=dict(x=0.02, y=0.98),
+        title_text="Convergence Trajectories (Separate Scales)",
+        height=500,
+        showlegend=True,
+        legend=dict(x=0.5, y=-0.1, orientation="h", xanchor="center"),
         hovermode="x unified",
     )
+    
+    # Update axes
+    fig.update_xaxes(title_text="Iteration", row=1, col=1)
+    fig.update_xaxes(title_text="Iteration", row=1, col=2)
+    fig.update_yaxes(title_text="Compliance (J)", row=1, col=1)
+    fig.update_yaxes(title_text="Compliance (normalized)", row=1, col=2)
+    
     return fig
 
 
 def plot_method_comparison() -> go.Figure:
+    """Create visual aid showing final compliance values for L-bracket optimization."""
     df = load_csv(RESULTS_DIR / "method_comparison.csv")
+    
+    # Filter to only L-bracket entries
+    df = df[df["tag"] == "lbracket"].copy()
     
     # Separate Diff-FEA and MMC data
     diff_fea_df = df[df["method"] == "diff_fea"].copy()
@@ -725,37 +749,63 @@ def plot_method_comparison() -> go.Figure:
     
     # Diff-FEA bars on left y-axis
     if len(diff_fea_df) > 0:
+        diff_fea_val = diff_fea_df["compliance"].iloc[0]
         fig.add_trace(
             go.Bar(
-                x=diff_fea_df["label"],
-                y=diff_fea_df["compliance"],
-                name="Diff-FEA",
+                x=["Diff-FEA/PINN"],
+                y=[diff_fea_val],
+                name="Diff-FEA/PINN",
                 marker_color="#1f77b4",
                 yaxis="y",
+                text=[f"{diff_fea_val:.1f} J"],
+                textposition="outside",
+                hovertemplate="<b>Diff-FEA/PINN</b><br>Compliance: %{y:.2f} J<extra></extra>",
             )
         )
     
     # MMC bars on right y-axis
     if len(mmc_df) > 0:
-        fig.add_trace(
-            go.Bar(
-                x=mmc_df["label"],
-                y=mmc_df["compliance"],
-                name="MMC",
-                marker_color="#ff7f0e",
-                yaxis="y2",
+        # Filter out problematic negative values for display
+        mmc_display_df = mmc_df[mmc_df["compliance"] > 0].copy()
+        if len(mmc_display_df) < len(mmc_df):
+            print(f"Warning: {len(mmc_df) - len(mmc_display_df)} MMC entries with negative compliance values excluded from plot")
+        
+        if len(mmc_display_df) > 0:
+            mmc_val = mmc_display_df["compliance"].iloc[0]
+            fig.add_trace(
+                go.Bar(
+                    x=["MMC"],
+                    y=[mmc_val],
+                    name="MMC",
+                    marker_color="#ff7f0e",
+                    yaxis="y2",
+                    text=[f"{mmc_val:.3f}"],
+                    textposition="outside",
+                    hovertemplate="<b>MMC</b><br>Compliance: %{y:.4f} (normalized)<extra></extra>",
+                )
             )
-        )
+    
+    # Add annotation explaining the different units
+    fig.add_annotation(
+        text="<b>Note:</b> Diff-FEA uses physical units (Joules),<br>MMC uses normalized compliance values.<br>Lower values indicate stiffer (better) designs.",
+        xref="paper",
+        yref="paper",
+        x=0.5,
+        y=-0.15,
+        showarrow=False,
+        font=dict(size=10, color="#666666"),
+        align="center",
+    )
     
     fig.update_layout(
-        title="Final Compliance Comparison",
-        xaxis_title="Method",
+        title="Final Compliance Values: L-Bracket Optimization Results",
+        xaxis_title="Optimization Method",
         yaxis=dict(
-            title=dict(text="Compliance (J) - Diff-FEA", font=dict(color="#1f77b4")),
+            title=dict(text="Compliance (J) - Diff-FEA/PINN", font=dict(color="#1f77b4", size=12)),
             tickfont=dict(color="#1f77b4"),
         ),
         yaxis2=dict(
-            title=dict(text="Compliance (normalized) - MMC", font=dict(color="#ff7f0e")),
+            title=dict(text="Compliance (normalized) - MMC", font=dict(color="#ff7f0e", size=12)),
             tickfont=dict(color="#ff7f0e"),
             anchor="x",
             overlaying="y",
@@ -764,7 +814,10 @@ def plot_method_comparison() -> go.Figure:
         showlegend=True,
         legend=dict(x=0.02, y=0.98),
         barmode="group",
+        height=500,
+        margin=dict(b=100),  # Extra bottom margin for annotation
     )
+    
     return fig
 
 
