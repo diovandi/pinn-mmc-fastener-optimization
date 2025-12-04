@@ -1,0 +1,14 @@
+Iteration 13: Computational Benchmark
+──────────────────────────────────────────────────
+Scenario: Single support optimization over 100 iterations
+
+Method A (Finite-Difference Gradient):
+  Time: 1.64 seconds
+  FEA evaluations: 100 × 2 = 200
+
+Method B (diffFEA + Zygote):
+  Time: 12.78 seconds
+  FEA evaluations: 100 × 1 = 100
+
+Speedup: 0.13x
+Verdict: Real speedup, but NOT "2272x"

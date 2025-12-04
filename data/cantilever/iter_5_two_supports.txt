@@ -1,0 +1,8 @@
+Iteration 5: Two Supports
+──────────────────────────────────────────────────
+Support Positions: [0.3, 0.7]
+Compliance (FEA): 1.314462e-03 J
+Gradient: [5.820751e-04, -1.801550e-02]
+
+Optimized Positions: [0.2998404472824352, 0.7050185978541097]
+Compliance: 1.230472e-03 J

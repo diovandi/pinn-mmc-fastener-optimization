@@ -1,0 +1,7 @@
+Iteration 1: Single Support at x = 0.5
+──────────────────────────────────────────────────
+Support Position: [0.5]
+Compliance (FEA): 1.255584e-02 J
+Gradient (Zygote): [-1.171747e-01]
+Gradient (Finite Diff): [-1.171725e-01]
+Relative Error: 1.90e-05 ✗ FAIL

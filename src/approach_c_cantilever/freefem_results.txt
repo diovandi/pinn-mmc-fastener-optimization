@@ -1,0 +1,4 @@
+tip_deflection 6.50415e-06
+compliance 0.000810318
+max_stress 219166
+support_pos 0.5

@@ -1,0 +1,13 @@
+Iteration 11: PINN vs. True FEA Optimum
+--------------------------------------------------
+True FEA Optimum:
+  Position: 0.3564
+  Compliance: 4.005911e-02 J
+
+PINN Optimum:
+  Position: 0.3624
+  Actual FEA Compliance: 3.844859e-02 J
+
+Errors:
+  Position error: 1.68%
+  Compliance error: 4.0203% ✗ FAIL
