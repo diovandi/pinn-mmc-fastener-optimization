@@ -1,0 +1,33 @@
+Iteration 10 (2D): PINN-Based Optimization
+------------------------------------------------------------
+Initial support position: 0.3000
+
+PINN Iter  0: pos=0.3000, C=3.832735e-03, grad=-1.823005e-02
+PINN Iter  1: pos=0.3001, C=3.831074e-03, grad=-1.823005e-02
+PINN Iter  2: pos=0.3002, C=3.829412e-03, grad=-1.823005e-02
+PINN Iter  3: pos=0.3003, C=3.827751e-03, grad=-1.823005e-02
+PINN Iter  4: pos=0.3004, C=3.826090e-03, grad=-1.823005e-02
+PINN Iter  5: pos=0.3005, C=3.824428e-03, grad=-1.823005e-02
+PINN Iter  6: pos=0.3005, C=3.822767e-03, grad=-1.823005e-02
+PINN Iter  7: pos=0.3006, C=3.821106e-03, grad=-1.823005e-02
+PINN Iter  8: pos=0.3007, C=3.819444e-03, grad=-1.823005e-02
+PINN Iter  9: pos=0.3008, C=3.817783e-03, grad=-1.823005e-02
+PINN Iter 10: pos=0.3009, C=3.816121e-03, grad=-1.823005e-02
+PINN Iter 11: pos=0.3010, C=3.814459e-03, grad=-1.823005e-02
+PINN Iter 12: pos=0.3011, C=3.812799e-03, grad=-1.823005e-02
+PINN Iter 13: pos=0.3012, C=3.811137e-03, grad=-1.823005e-02
+PINN Iter 14: pos=0.3013, C=3.809475e-03, grad=-1.823005e-02
+PINN Iter 15: pos=0.3014, C=3.807814e-03, grad=-1.823005e-02
+PINN Iter 16: pos=0.3015, C=3.806153e-03, grad=-1.823005e-02
+PINN Iter 17: pos=0.3015, C=3.804491e-03, grad=-1.823005e-02
+PINN Iter 18: pos=0.3016, C=3.802830e-03, grad=-1.823005e-02
+PINN Iter 19: pos=0.3017, C=3.801168e-03, grad=-1.823005e-02
+PINN Iter 20: pos=0.3018, C=3.799507e-03, grad=-1.823005e-02
+PINN Iter 21: pos=0.3019, C=3.797845e-03, grad=-1.823005e-02
+PINN Iter 22: pos=0.3020, C=3.796184e-03, grad=-1.823005e-02
+PINN Iter 23: pos=0.3021, C=3.794523e-03, grad=-1.823005e-02
+PINN Iter 24: pos=0.3022, C=3.792861e-03, grad=-1.823005e-02
+
+Converged support position (PINN): 0.302278 m
+PINN compliance: 3.792861e-03 J
+2D FEA compliance at this position: 4.999381e-03 J

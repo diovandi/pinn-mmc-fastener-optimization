@@ -13,7 +13,7 @@ include("../approach_a_pinn/DiffFEA_2D.jl")
 # --- Material and Geometry Constants ---
 const E_2D = 210e9  # Young's modulus (Pa) - Steel
 const nu_2D = 0.3   # Poisson's ratio
-const b_2D = 0.1    # Beam width (m) - thickness in plane stress
+const b_2D = 1.0    # Out-of-plane thickness (m) - match FreeFEM's implicit unit thickness
 const h_2D = 0.05   # Beam height (m)
 const L_2D = 1.0    # Beam length (m)
 const q_2D = 1000.0 # Distributed load (N/m)
@@ -85,85 +85,87 @@ end
 # ============================================================================
 function assemble_distributed_load_2d(nodes, elements, boundary_labels, q, L)
     """
-    Assemble load vector for distributed load q on top edge.
+    Assemble load vector for distributed load q on the top edge.
+    Mirrors FreeFEM's int1d(Th,3)(q * v0) using edge-based integration.
     q: distributed load (N/m)
     Returns: load vector F (2 DOF per node: ux, uy)
     """
     n_nodes = length(nodes)
     n_dofs = 2 * n_nodes
     F = zeros(n_dofs)
-    
-    # Get top edge nodes
+
+    # Get top edge nodes (ordered along x)
     top_nodes = boundary_labels[:top]
-    
-    # Distribute load to top edge nodes
-    # For each node on top edge, apply vertical force
-    # Total force = q * L, distribute evenly among top nodes
-    n_top = length(top_nodes)
-    if n_top > 1
-        # Edge nodes get half share, interior nodes get full share
-        force_per_node = q * L / (n_top - 1)  # Approximate
-        
-        for (idx, node_idx) in enumerate(top_nodes)
-            if idx == 1 || idx == n_top
-                # Corner nodes: half force
-                F[2*node_idx] = q * L / (2 * (n_top - 1))
-            else
-                # Interior nodes: full force
-                F[2*node_idx] = q * L / (n_top - 1)
-            end
-        end
-    else
-        # Single node case
-        F[2*top_nodes[1]] = q * L
+
+    # For each edge between consecutive top nodes, apply consistent nodal forces
+    # For linear P1: F_i = q * Le / 2, F_j = q * Le / 2 (vertical DOF only)
+    for k in 1:(length(top_nodes)-1)
+        i = top_nodes[k]
+        j = top_nodes[k+1]
+
+        x_i, y_i = nodes[i]
+        x_j, y_j = nodes[j]
+
+        # Edge length
+        L_e = sqrt((x_j - x_i)^2 + (y_j - y_i)^2)
+
+        # Consistent nodal forces (downwards load in y)
+        f_i = q * L_e / 2.0
+        f_j = q * L_e / 2.0
+
+        # Vertical DOFs are 2*i and 2*j
+        F[2*i] += f_i
+        F[2*j] += f_j
     end
-    
+
     return F
 end
 
 # ============================================================================
 # 3. Intermediate Support Penalty (2D)
 # ============================================================================
-function apply_intermediate_support_penalty_2d(K, nodes, support_positions, L, penalty_base, sigma)
+function apply_intermediate_support_penalty_2d(K, nodes, support_positions, L, penalty_base, sigma;
+                                              boundary_labels=nothing)
     """
     Apply penalty method for intermediate supports in 2D.
-    Penalty is applied to vertical displacement (uy) at nodes near support position.
+    Penalty is applied to vertical displacement (uy) at bottom-edge nodes
+    near each support position, approximating a line support.
     """
     n_nodes = length(nodes)
     n_dofs = 2 * n_nodes
-    
-    # Find nodes near support positions
-    I_pen = Int[]
-    J_pen = Int[]
-    V_pen = Float64[]
-    
-    for pos in support_positions
-        pos_clamped = clamp(pos, 0.1*L, 0.9*L)
-        
-        for (node_idx, (x, y)) in enumerate(nodes)
-            # Only apply to nodes in valid range
-            if x >= 0.1*L && x <= 0.9*L
-                dist_sq = (x - pos_clamped)^2
-                weight = exp(-dist_sq / (2 * sigma^2))
-                
-                if weight > 1e-6  # Only apply if significant
-                    # Vertical DOF is 2*node_idx
-                    dof = 2*node_idx
-                    push!(I_pen, dof)
-                    push!(J_pen, dof)
-                    push!(V_pen, penalty_base * weight)
-                end
-            end
+
+    bottom_nodes = boundary_labels === nothing ? collect(1:n_nodes) : boundary_labels[:bottom]
+    support_tol = sigma
+    x_min = 0.1 * L
+    x_max = 0.9 * L
+
+    function penalty_for_node(node_idx)
+        is_bottom = any(n -> n == node_idx, bottom_nodes)
+        if !is_bottom
+            return 0.0
         end
+        x, _ = nodes[node_idx]
+        inside_span = (x >= x_min) && (x <= x_max)
+        if !inside_span
+            return 0.0
+        end
+        weight = sum(begin
+            pos_clamped = clamp(pos, x_min, x_max)
+            delta = x - pos_clamped
+            exp(- (delta^2) / (2 * support_tol^2 + eps()))
+        end for pos in support_positions)
+        return penalty_base * weight
     end
-    
-    # Combine penalties (sum if multiple supports affect same DOF)
-    if !isempty(I_pen)
-        # Use sparse matrix to handle duplicates
-        K_pen = sparse(I_pen, J_pen, V_pen, n_dofs, n_dofs)
-        return K_pen
+
+    penalty_diag = [
+        iseven(dof) ? penalty_for_node(div(dof, 2)) : 0.0
+        for dof in 1:n_dofs
+    ]
+
+    if any(!iszero, penalty_diag)
+        return Diagonal(penalty_diag)
     else
-        return spzeros(n_dofs, n_dofs)
+        return zeros(n_dofs, n_dofs)
     end
 end
 
@@ -186,10 +188,13 @@ function solve_beam_compliance_2d(support_positions::Vector{Float64};
     n_dofs = 2 * n_nodes
     
     # Convert nodes to flat coordinate array for CST routine
-    flat_coords = Float64[]
-    for (x, y) in nodes
-        push!(flat_coords, x)
-        push!(flat_coords, y)
+    flat_coords = Zygote.ignore() do
+        tmp = Float64[]
+        for (x, y) in nodes
+            push!(tmp, x)
+            push!(tmp, y)
+        end
+        tmp
     end
     
     # Compute element stiffness matrices using CST
@@ -234,22 +239,26 @@ function solve_beam_compliance_2d(support_positions::Vector{Float64};
     
     # Boundary conditions: fixed at left edge (x=0)
     left_nodes = boundary_labels[:left]
-    fixed_dofs = Int[]
-    for node_idx in left_nodes
-        push!(fixed_dofs, 2*node_idx - 1)  # ux = 0
-        push!(fixed_dofs, 2*node_idx)      # uy = 0
+    fixed_dofs = Zygote.ignore() do
+        tmp = Int[]
+        for node_idx in left_nodes
+            push!(tmp, 2*node_idx - 1)  # ux = 0
+            push!(tmp, 2*node_idx)      # uy = 0
+        end
+        tmp
     end
     
     # Apply fixed boundary conditions via penalty
-    penalty_base = 1e9
+    penalty_base = 1e10
     K_pen_fixed = Zygote.ignore() do
         sparse(fixed_dofs, fixed_dofs, penalty_base, n_dofs, n_dofs)
     end
     
     # Apply intermediate support penalty (differentiable)
-    sigma = L / (2 * nx)  # Characteristic length scale
+    sigma = L / (2 * nx)  # Characteristic length scale (≈ element size)
     K_pen_support = apply_intermediate_support_penalty_2d(
-        K, nodes, support_positions, L, penalty_base, sigma
+        K, nodes, support_positions, L, penalty_base, sigma;
+        boundary_labels=boundary_labels
     )
     
     # Solve
@@ -280,10 +289,13 @@ function solve_beam_compliance_extended_2d(support_positions::Vector{Float64};
     n_dofs = 2 * n_nodes
     
     # Convert nodes to flat coordinate array
-    flat_coords = Float64[]
-    for (x, y) in nodes
-        push!(flat_coords, x)
-        push!(flat_coords, y)
+    flat_coords = Zygote.ignore() do
+        tmp = Float64[]
+        for (x, y) in nodes
+            push!(tmp, x)
+            push!(tmp, y)
+        end
+        tmp
     end
     
     # Compute element stiffness matrices
@@ -326,20 +338,24 @@ function solve_beam_compliance_extended_2d(support_positions::Vector{Float64};
     
     # Boundary conditions
     left_nodes = boundary_labels[:left]
-    fixed_dofs = Int[]
-    for node_idx in left_nodes
-        push!(fixed_dofs, 2*node_idx - 1)
-        push!(fixed_dofs, 2*node_idx)
+    fixed_dofs = Zygote.ignore() do
+        tmp = Int[]
+        for node_idx in left_nodes
+            push!(tmp, 2*node_idx - 1)
+            push!(tmp, 2*node_idx)
+        end
+        tmp
     end
     
-    penalty_base = 1e9
+    penalty_base = 1e10
     K_pen_fixed = Zygote.ignore() do
         sparse(fixed_dofs, fixed_dofs, penalty_base, n_dofs, n_dofs)
     end
     
     sigma = L / (2 * nx)
     K_pen_support = apply_intermediate_support_penalty_2d(
-        K, nodes, support_positions, L, penalty_base, sigma
+        K, nodes, support_positions, L, penalty_base, sigma;
+        boundary_labels=boundary_labels
     )
     
     # Solve
@@ -445,11 +461,30 @@ end
 # ============================================================================
 # 7. Gradient Wrapper
 # ============================================================================
-function ∇compliance_fea_2d(support_positions::Vector{Float64})
+function ∇compliance_fea_2d(support_positions::Vector{Float64}; kwargs...)
     """
     Compute gradient of compliance w.r.t. support positions using Zygote.
+    Optional keyword arguments (mesh density, material props, etc.) are passed
+    through to `solve_beam_compliance_2d`.
     """
-    grads = Zygote.gradient(x -> solve_beam_compliance_2d(x), support_positions)[1]
+    grads = Zygote.gradient(x -> solve_beam_compliance_2d(x; kwargs...), support_positions)[1]
     return grads
+end
+
+# ============================================================================
+# 8. Convenience wrappers for scalar support position
+# ============================================================================
+function compliance_2d(support_pos::Float64; kwargs...)
+    """
+    Convenience wrapper for single-support compliance evaluation.
+    """
+    return solve_beam_compliance_2d([support_pos]; kwargs...)
+end
+
+function grad_compliance_2d(support_pos::Float64; kwargs...)
+    """
+    Gradient of compliance w.r.t. a single support position.
+    """
+    return ∇compliance_fea_2d([support_pos]; kwargs...)[1]
 end
 

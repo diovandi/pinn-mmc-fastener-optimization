@@ -1,0 +1,5 @@
+2D diffFEA Optimization Summary
+--------------------------------
+Iterations run: 20
+Final support position: 0.302589 m
+Final compliance: 4.682443e-03 J

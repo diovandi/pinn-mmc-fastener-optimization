@@ -9,43 +9,70 @@ import torch
 import torch.nn as nn
 from pathlib import Path
 import time
+import json
 
 BASE_DIR = Path(__file__).resolve().parent
 SRC_DIR = BASE_DIR.parent
 ROOT_DIR = SRC_DIR.parent
 RESULTS_DIR = ROOT_DIR / "data" / "results"
 
-# Paths
-PINN_DATA = RESULTS_DIR / "pinn_training_data.csv"
+# Paths - Use multi-geometry model (primary) with legacy fallback
+PINN_DATA_LEGACY = RESULTS_DIR / "pinn_training_data.csv"
+MULTI_GEOM_DATA_DIR = RESULTS_DIR / "multi_geom_training"
 DIFF_FEA_LOG = RESULTS_DIR / "lbracket_diff_fea_log.csv"
 MMC_LOG = RESULTS_DIR / "mmc_lbracket_log.csv"
 METHOD_COMP = RESULTS_DIR / "method_comparison.csv"
-MODEL_PATH = SRC_DIR / "approach_a_pinn/artifacts/pinn_model.pth"
-STATS_PATH = SRC_DIR / "approach_a_pinn/artifacts/norm_stats.npz"
-HIDDEN_SIZE = 64
+
+# Multi-geometry model (primary)
+MULTI_GEOM_MODEL_PATH = SRC_DIR / "approach_a_pinn/artifacts_multi_geom/pinn_multi_geom.pth"
+MULTI_GEOM_STATS_PATH = SRC_DIR / "approach_a_pinn/artifacts_multi_geom/norm_stats_multi_geom.npz"
+MULTI_GEOM_META_PATH = SRC_DIR / "approach_a_pinn/artifacts_multi_geom/dataset_metadata.json"
+
+# Legacy model (fallback)
+LEGACY_MODEL_PATH = SRC_DIR / "approach_a_pinn/artifacts/pinn_model.pth"
+LEGACY_STATS_PATH = SRC_DIR / "approach_a_pinn/artifacts/norm_stats.npz"
+LEGACY_HIDDEN_SIZE = 64
+MULTI_GEOM_HIDDEN_SIZE = 96
 
 class SurrogateModel(nn.Module):
-    def __init__(self):
+    def __init__(self, input_dim: int, hidden_size: int):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(4, HIDDEN_SIZE),
+            nn.Linear(input_dim, hidden_size),
             nn.Tanh(),
-            nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
+            nn.Linear(hidden_size, hidden_size),
             nn.Tanh(),
-            nn.Linear(HIDDEN_SIZE, 1)
+            nn.Linear(hidden_size, 1)
         )
     def forward(self, x):
         return self.net(x)
 
 def load_pinn_model():
-    """Load trained PINN for inference timing."""
-    if not MODEL_PATH.exists() or not STATS_PATH.exists():
-        return None, None
-    stats = np.load(STATS_PATH)
-    model = SurrogateModel()
-    model.load_state_dict(torch.load(MODEL_PATH))
-    model.eval()
-    return model, stats
+    """Load trained PINN for inference timing. Prefers multi-geometry model."""
+    # Try multi-geometry model first
+    if MULTI_GEOM_MODEL_PATH.exists() and MULTI_GEOM_STATS_PATH.exists():
+        stats = np.load(MULTI_GEOM_STATS_PATH)
+        if MULTI_GEOM_META_PATH.exists():
+            with open(MULTI_GEOM_META_PATH, 'r') as f:
+                meta = json.load(f)
+            input_dim = meta.get('input_dim', 14)
+        else:
+            # Infer from stats
+            input_dim = stats['X_mean'].shape[0]
+        model = SurrogateModel(input_dim, MULTI_GEOM_HIDDEN_SIZE)
+        model.load_state_dict(torch.load(MULTI_GEOM_MODEL_PATH))
+        model.eval()
+        return model, stats, 'multi_geom'
+    
+    # Fallback to legacy model
+    if LEGACY_MODEL_PATH.exists() and LEGACY_STATS_PATH.exists():
+        stats = np.load(LEGACY_STATS_PATH)
+        model = SurrogateModel(4, LEGACY_HIDDEN_SIZE)
+        model.load_state_dict(torch.load(LEGACY_MODEL_PATH))
+        model.eval()
+        return model, stats, 'legacy'
+    
+    return None, None, None
 
 def generate_unified_comparison():
     """Generate all comparative plots for thesis."""
@@ -91,23 +118,69 @@ def generate_unified_comparison():
     else:
         fea_time = 0.0104
     
-    # Measure PINN inference time
-    model, stats = load_pinn_model()
-    if model is not None and PINN_DATA.exists():
-        data = pd.read_csv(PINN_DATA, header=None).values.astype(np.float32)
-        X_norm = (data[:, 0:4] - stats['X_mean']) / stats['X_std']
-        X_tensor = torch.tensor(X_norm, dtype=torch.float32)
+    # Measure PINN inference time (use multi-geometry model if available)
+    model, stats, model_type = load_pinn_model()
+    if model is not None and stats is not None:
+        # Load appropriate dataset based on model type
+        if model_type == 'multi_geom' and MULTI_GEOM_DATA_DIR.exists():
+            # Load multi-geometry data - need to match the encoding from train_multi_geom.py
+            data_files = list(MULTI_GEOM_DATA_DIR.glob("*.csv"))
+            if data_files:
+                # Load all files and combine (matching train_multi_geom.py logic)
+                frames = []
+                for f in data_files:
+                    df = pd.read_csv(f)
+                    frames.append(df)
+                sample_data = pd.concat(frames, ignore_index=True)
+                
+                # Extract screw columns (matching train_multi_geom.py)
+                screw_cols = ["s1_x", "s1_y", "s2_x", "s2_y", "s3_x", "s3_y"]
+                for col in screw_cols:
+                    if col not in sample_data.columns:
+                        sample_data[col] = 0.0
+                
+                # Get unique geometries and load cases (matching train_multi_geom.py)
+                geom_names = sorted(sample_data["geometry"].unique()) if "geometry" in sample_data.columns else []
+                load_cases = sorted(sample_data["load_case"].unique()) if "load_case" in sample_data.columns else []
+                
+                # Create one-hot encoding (matching train_multi_geom.py)
+                geom_map = {name: idx for idx, name in enumerate(geom_names)}
+                load_map = {name: idx for idx, name in enumerate(load_cases)}
+                
+                geom_one_hot = np.eye(len(geom_names))[sample_data["geometry"].map(geom_map).values.astype(int)] if geom_names else np.zeros((len(sample_data), 0))
+                load_one_hot = np.eye(len(load_cases))[sample_data["load_case"].map(load_map).values.astype(int)] if load_cases else np.zeros((len(sample_data), 0))
+                
+                screw_data = sample_data[screw_cols].values.astype(np.float32)
+                X = np.hstack([screw_data, geom_one_hot, load_one_hot]).astype(np.float32)
+                
+                # Normalize (stats should match the encoding)
+                X_norm = (X - stats['X_mean']) / stats['X_std']
+                X_tensor = torch.tensor(X_norm, dtype=torch.float32)
+            else:
+                X_tensor = None
+        elif model_type == 'legacy' and PINN_DATA_LEGACY.exists():
+            # Legacy model uses 4 inputs
+            data = pd.read_csv(PINN_DATA_LEGACY, header=None).values.astype(np.float32)
+            X_norm = (data[:, 0:4] - stats['X_mean']) / stats['X_std']
+            X_tensor = torch.tensor(X_norm, dtype=torch.float32)
+        else:
+            X_tensor = None
         
-        with torch.no_grad():
-            reps = 500
-            start = time.perf_counter()
-            for _ in range(reps):
-                _ = model(X_tensor)
-            if torch.cuda.is_available():
-                torch.cuda.synchronize()
-            pinn_time = (time.perf_counter() - start) / reps
+        if X_tensor is not None:
+            with torch.no_grad():
+                reps = 500
+                start = time.perf_counter()
+                for _ in range(reps):
+                    _ = model(X_tensor)
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+                pinn_time = (time.perf_counter() - start) / reps
+        else:
+            # Use documented value from comprehensive_results_table.md
+            pinn_time = 0.000009  # 0.009 ms for multi-geometry PINN
     else:
-        pinn_time = 0.000087
+        # Use documented value from comprehensive_results_table.md
+        pinn_time = 0.000009  # 0.009 ms for multi-geometry PINN
     
     if MMC_LOG.exists():
         df_mmc = pd.read_csv(MMC_LOG)

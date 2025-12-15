@@ -27,6 +27,8 @@ export solve_beam_compliance_extended_2d
 export extract_tip_deflection_2d
 export compute_von_mises_stress_2d
 export ∇compliance_fea_2d
+export compliance_2d
+export grad_compliance_2d
 
 # Constants
 export E_1D, nu_1D, b_1D, h_1D, L_1D, q_1D, I_1D
